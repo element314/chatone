@@ -40,7 +40,6 @@ export function sanitizeHtmlForTelegram(text: string): string {
     if (!tag || tag.trim() === '') {
       return '';
     }
-    //@ts-nocheck
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
     return ALLOWED_TAGS.has(tag.toLowerCase()) ? match : '';
   });
@@ -51,7 +50,7 @@ export function sanitizeHtmlForTelegram(text: string): string {
  * Разбивает HTML-текст на фрагменты так, чтобы каждый фрагмент не превышал maxLength символов,
  * при этом сохраняется баланс разрешённых тегов (<pre>, <code> и т.п.).
  *
- * Для простоты мы реализуем парсинг по регулярному выражению, не пытаясь сохранить все атрибуты.
+ * Для простоты реализован парсинг по регулярному выражению.
  */
 export function splitHtmlMessage(text: string, maxLength: number): string[] {
   interface Token {
@@ -85,11 +84,11 @@ export function splitHtmlMessage(text: string, maxLength: number): string[] {
 
   const result: string[] = [];
   let currentFragment = '';
-  const openTags: string[] = []; // будем хранить имена открытых тегов
+  const openTags: string[] = []; // стек для открытых тегов
 
-  // Функция для формирования префикса из открытых тегов (без атрибутов)
+  // Формирует префикс из открытых тегов (без атрибутов)
   const getOpenTagsPrefix = () => openTags.map((tag) => `<${tag}>`).join('');
-  // Функция для формирования закрывающих тегов (в обратном порядке)
+  // Формирует строку закрывающих тегов (в обратном порядке)
   const getCloseTagsSuffix = () =>
     openTags
       .slice()
@@ -98,20 +97,36 @@ export function splitHtmlMessage(text: string, maxLength: number): string[] {
       .join('');
 
   const flushFragment = () => {
-    // Закрываем открытые теги в текущем фрагменте
-    result.push(currentFragment + getCloseTagsSuffix());
-    // Начинаем новый фрагмент с повторным открытием тегов
+    // Добавляем фрагмент только если он не пустой (после trim)
+    if (currentFragment.trim().length > 0) {
+      result.push(currentFragment + getCloseTagsSuffix());
+    }
+    // Новый фрагмент начинается с повторного открытия текущих тегов
     currentFragment = getOpenTagsPrefix();
   };
 
   for (const token of tokens) {
     const tokenContent = token.content;
-    // Если добавление токена приводит к превышению лимита, то сбрасываем фрагмент
+
+    // Если currentFragment пустой и сам токен длиннее maxLength,
+    // разбиваем токен на части
+    if (currentFragment.length === 0 && tokenContent.length > maxLength) {
+      let start = 0;
+      while (start < tokenContent.length) {
+        const chunk = tokenContent.slice(start, start + maxLength);
+        result.push(getOpenTagsPrefix() + chunk + getCloseTagsSuffix());
+        start += maxLength;
+      }
+      continue;
+    }
+
+    // Если добавление токена превышает лимит, сбрасываем текущий фрагмент
     if (currentFragment.length + tokenContent.length > maxLength) {
       flushFragment();
     }
     currentFragment += tokenContent;
-    // Если токен – тег и он разрешён, обновляем стек
+
+    // Если токен – тег и он разрешён, обновляем стек openTags
     if (
       token.type === 'tag' &&
       token.tagName &&
@@ -120,7 +135,6 @@ export function splitHtmlMessage(text: string, maxLength: number): string[] {
       if (token.isOpening) {
         openTags.push(token.tagName);
       } else if (token.isClosing) {
-        // Найдём последний открывающий этот тег и удалим его из стека
         const idx = openTags.lastIndexOf(token.tagName);
         if (idx !== -1) {
           openTags.splice(idx, 1);
@@ -128,7 +142,7 @@ export function splitHtmlMessage(text: string, maxLength: number): string[] {
       }
     }
   }
-  if (currentFragment.length > 0) {
+  if (currentFragment.trim().length > 0) {
     result.push(currentFragment);
   }
   return result;

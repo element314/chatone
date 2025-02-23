@@ -21,9 +21,8 @@ export class ChatService {
   }
 
   /**
-   * Отправка запроса в OpenAI ChatCompletion с историей переписки.
-   * @param chatId - идентификатор чата (например, из Telegram)
-   * @param prompt - новое сообщение пользователя
+   * Отправляет запрос в OpenAI с историей переписки.
+   * Если storeUserMessage равен true, текущее сообщение сохраняется.
    */
   async sendMessage(chatId: string, prompt: string): Promise<string> {
     await this.chatRepository.save({
@@ -44,7 +43,6 @@ export class ChatService {
       content: msg.content,
     }));
 
-    // Системное сообщение с инструкцией
     messages.unshift({
       role: 'system',
       content:
@@ -54,7 +52,8 @@ export class ChatService {
     try {
       const completion = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        //@ts-expect-error - исправить!
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        //@ts-expect-error
         messages: messages,
       });
 
