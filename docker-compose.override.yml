@@ -16,3 +16,13 @@ services:
       POSTGRES_DB: chat_db
     depends_on:
       - postgres
+
+
+  transcriber:
+    build: ./transcriber
+    ports:
+      - "4001:4001"
+    volumes:
+      - ./transcriber:/app
+    environment:
+      - FLASK_ENV=development
