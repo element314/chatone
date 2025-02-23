@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Chat } from './entities/chat.entity'; // убедитесь, что путь корректный
+import { Chat } from './entities/chat.entity';
 import * as dotenv from 'dotenv';
 import OpenAI from 'openai';
 
@@ -21,48 +21,45 @@ export class ChatService {
   }
 
   /**
-   * Отправка запроса в OpenAI ChatCompletion с историей переписки
-   * @param chatId - идентификатор чата (например, chatId из Telegram)
+   * Отправка запроса в OpenAI ChatCompletion с историей переписки.
+   * @param chatId - идентификатор чата (например, из Telegram)
    * @param prompt - новое сообщение пользователя
    */
   async sendMessage(chatId: string, prompt: string): Promise<string> {
-    // Сохраняем сообщение пользователя
     await this.chatRepository.save({
       chatId,
       role: 'user',
       content: prompt,
     });
 
-    // Получаем историю переписки для данного chatId (например, последние 20 сообщений)
-    const conversationHistory = await this.chatRepository.find({
+    let conversationHistory = await this.chatRepository.find({
       where: { chatId },
-      order: { createdAt: 'ASC' },
-      take: 20,
+      order: { createdAt: 'DESC' },
+      take: 50,
     });
-  console.log('conversationHistory', JSON.stringify(conversationHistory));
-    // Формируем массив сообщений для OpenAI
+    conversationHistory = conversationHistory.reverse();
+
     const messages = conversationHistory.map((msg) => ({
       role: msg.role,
       content: msg.content,
     }));
 
-    // Добавляем системное сообщение в начало (при необходимости)
+    // Системное сообщение с инструкцией
     messages.unshift({
       role: 'system',
-      content: 'You are a helpful assistant.',
+      content:
+        'You are a helpful assistant. Answer in HTML format. Wrap any code snippets in <pre> tags and do not unnecessarily escape punctuation. Return your answer as a combination of HTML paragraphs and <pre> blocks, as appropriate.',
     });
 
     try {
-      // Отправляем запрос с историей переписки
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini', // или другую модель, если требуется
+        model: 'gpt-4o-mini',
         //@ts-expect-error - исправить!
         messages: messages,
       });
 
       const assistantReply = completion.choices[0].message.content;
 
-      // Сохраняем ответ ассистента в базу
       await this.chatRepository.save({
         chatId,
         role: 'assistant',
@@ -80,47 +77,3 @@ export class ChatService {
     }
   }
 }
-
-// import { Injectable } from '@nestjs/common';
-// import * as dotenv from 'dotenv';
-// import OpenAI from 'openai';
-//
-// dotenv.config();
-//
-// @Injectable()
-// export class ChatService {
-//   private openai: OpenAI;
-//
-//   constructor() {
-//     this.openai = new OpenAI({
-//       apiKey: process.env.OPENAI_API_KEY,
-//     });
-//   }
-//
-//   /**
-//    * Отправка запроса в OpenAI ChatCompletion
-//    * @param prompt - сообщение пользователя (вопрос)
-//    */
-//   async sendMessage(prompt: string): Promise<string> {
-//     try {
-//       // Создаём чат-комплишен
-//       const completion = await this.openai.chat.completions.create({
-//         model: 'gpt-4o-mini',
-//         messages: [
-//           { role: 'system', content: 'You are a helpful assistant.' },
-//           { role: 'user', content: prompt },
-//         ],
-//       });
-//       // console.log(JSON.stringify(completion));
-//       // Возвращаем контент первого (0-го) варианта ответа
-//       return completion.choices[0].message.content;
-//     } catch (error: unknown) {
-//       if (error instanceof Error) {
-//         console.error('Ошибка при запросе к OpenAI:', error.message);
-//       } else {
-//         console.error('Неизвестная ошибка при запросе к OpenAI:', error);
-//       }
-//       throw error;
-//     }
-//   }
-// }
