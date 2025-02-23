@@ -83,10 +83,12 @@ export async function transcribeVoiceMessage(
 
     console.log('Starting transcription with OpenAI Whisper');
 
+    // Замер времени начала транскрипции
+    const startTime = Date.now();
+
     // Добавляем повторные попытки при ошибке соединения
     let attempts = 3;
     let transcription;
-
     while (attempts > 0) {
       try {
         transcription = await openai.audio.transcriptions.create({
@@ -94,9 +96,12 @@ export async function transcribeVoiceMessage(
           model: 'whisper-1',
           response_format: 'text',
         });
-        console.log('Transcription result:', {
-          text: transcription as string,
-        });
+        // Замер времени окончания транскрипции
+        const endTime = Date.now();
+        console.log('Transcription result:', transcription);
+        console.log(
+          `Transcription took ${((endTime - startTime) / 1000).toFixed(2)} seconds`,
+        );
         break;
       } catch (error) {
         attempts--;
@@ -104,7 +109,7 @@ export async function transcribeVoiceMessage(
         console.log(
           `Transcription attempt failed, retrying... (${attempts} attempts left)`,
         );
-        await new Promise((resolve) => setTimeout(resolve, 2000)); // ждем 2 секунды перед повторной попыткой
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Ждем 2 секунды перед повторной попыткой
       }
     }
 
