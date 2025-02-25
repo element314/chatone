@@ -1,11 +1,12 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import { Bot, Context, InputFile } from 'grammy';
+import { forwardRef, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { Bot, Context, InputFile  } from 'grammy';
 import { ChatService } from '../chat/chat.service';
 import {
   sanitizeHtmlForTelegram,
   splitHtmlMessage,
 } from './helpers/convertToTelegramFormat';
 import { transcribeVoiceMessage } from './helpers/transcribeVoice';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import OpenAI from 'openai';
@@ -14,7 +15,6 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!TELEGRAM_BOT_TOKEN) {
   throw new Error('TELEGRAM_BOT_TOKEN is not defined');
 }
-
 // Экземпляр OpenAI для TTS (Text-to-Speech)
 const ttsOpenai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -40,7 +40,6 @@ async function sendMessage(bot: Bot<Context>, chatId: string, text: string) {
     }
   }
 }
-
 // Функция для генерации голосового ответа через OpenAI TTS API и отправки его в Telegram
 async function sendVoiceResponse(
   bot: Bot<Context>,
@@ -103,7 +102,13 @@ async function sendVoiceResponse(
 export class TelegramService implements OnModuleInit {
   private bot: Bot<Context>;
 
-  constructor(private readonly chatService: ChatService) {
+  constructor(
+
+    private readonly chatService: ChatService,
+  @Inject(forwardRef(() => WebsocketGateway))
+  private readonly websocketGateway: WebsocketGateway,
+  ) {
+    // Создаём экземпляр бота
     this.bot = new Bot<Context>(TELEGRAM_BOT_TOKEN);
 
     this.bot.command('start', async (ctx) => {
@@ -116,22 +121,28 @@ export class TelegramService implements OnModuleInit {
         let userMessageText: string;
 
         if (ctx.message.voice) {
-          console.log('[onMessage] Received voice message');
           userMessageText = await transcribeVoiceMessage(ctx);
-          sendMessage(this.bot, chatId, `Транскрибация: ${userMessageText}`);
+          await sendMessage(
+            this.bot,
+            chatId,
+            `Транскрибация: ${userMessageText}`,
+          );
         } else if (ctx.message.text) {
-          console.log('[onMessage] Received text message:', ctx.message.text);
           userMessageText = ctx.message.text;
+          this.websocketGateway.broadcastMessage(
+            chatId,
+            `ТГ сообщение: ${userMessageText}`,
+          );
         } else {
-          console.log('[onMessage] Unsupported message type');
           return;
         }
 
+        // Передаём в ChatService флаг storeUserMessage: false для голосовых, true для текстовых
         const openAiAnswer = await this.chatService.sendMessage(
           chatId,
           userMessageText,
         );
-        console.log('openAoiAnswer', openAiAnswer);
+
         if (ctx.message.voice) {
           console.log('[onMessage] Responding with voice message');
           await sendVoiceResponse(this.bot, chatId, openAiAnswer);
@@ -139,17 +150,27 @@ export class TelegramService implements OnModuleInit {
           console.log('[onMessage] Responding with text message');
           await sendMessage(this.bot, chatId, openAiAnswer);
         }
+
       } catch (error) {
-        console.error('[onMessage] Error processing message:', error);
+        console.error('Ошибка при обработке сообщения:', error);
         await ctx.reply('Произошла ошибка при обработке сообщения.');
       }
     });
 
     this.bot.start();
-    console.log('[TelegramService] Telegram Bot (grammy) запущен!');
   }
 
   onModuleInit() {
-    console.log('[TelegramService] Nest Telegram Service initialized.');
+    console.log('Telegram Bot (grammy) запущен!');
+  }
+  async sendRawToTelegram(chatId: string, text: string) {
+    await this.bot.api.sendMessage(chatId, text);
+  }
+  async processMessage(chatId: string, text: string): Promise<string> {
+    console.log(
+      `[TelegramService] Processing message for chatId ${chatId}: ${text}`,
+    );
+    // Допустим, просто эхо-ответ:
+    return `Ответ бота на: ${text}`;
   }
 }

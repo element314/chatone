@@ -4,6 +4,11 @@ import { AppService } from './app.service';
 import { ChatModule } from './chat/chat.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { WebsocketGateway } from './websocket/websocket.gateway';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+
+import { WebsocketModule } from './websocket/websocket.module';
 
 @Module({
   imports: [
@@ -15,12 +20,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       password: process.env.POSTGRES_PASSWORD || 'postgres',
       database: process.env.POSTGRES_DB || 'chat_db',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true, // для разработки, в продакшене лучше отключать
+      synchronize: false, // для разработки, в продакшене лучше отключать
     }),
     ChatModule,
     TelegramModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'), // Папка public
+    }),
+    WebsocketModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, WebsocketGateway],
 })
 export class AppModule {}
