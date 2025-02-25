@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Nest + Socket.io Chat</title>
+</head>
+<body>
+<h1>WebSocket Chat</h1>
+
+<div id="chatOutput"></div>
+<input id="chatInput" placeholder="Type a message" />
+<button onclick="sendMessage()">Send</button>
+
+<!-- Сокеты -->
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // Подключаемся к сокетам (тот же хост и порт, где запущен Nest)
+  const socket = io();
+
+  socket.on('connect', () => {
+    console.log('Socket connected:', socket.id);
+  });
+
+  socket.on('receiveMessage', (message) => {
+    console.log('[receiveMessage]', message);
+    const chatOutput = document.getElementById('chatOutput');
+    const div = document.createElement('div');
+    div.innerText = `Bot: ${message.text}`;
+    chatOutput.appendChild(div);
+  });
+
+  function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (text !== '') {
+      // Пример. chatId можно формировать как угодно
+      socket.emit('sendMessage', { chatId: '1676880344', text });
+
+      // Отобразим отправленный текст
+      const chatOutput = document.getElementById('chatOutput');
+      const div = document.createElement('div');
+      div.innerText = `You: ${text}`;
+      chatOutput.appendChild(div);
+
+      input.value = '';
+    }
+  }
+</script>
+</body>
+</html>
