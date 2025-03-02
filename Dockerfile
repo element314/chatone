@@ -10,6 +10,9 @@ RUN npm install
 
 COPY . .
 
+# Копируем миграции в контейнер
+COPY ./src/migrations ./migrations
+
 EXPOSE 3000
 
-CMD ["npm", "run", "start:dev"]
+CMD ["npm", "run", "start:prod"]

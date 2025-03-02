@@ -4,16 +4,15 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { config } from 'dotenv';
 
-// Загружаем переменные окружения
+config({
+  path: process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev',
+});
+
 console.log(
   'Подключение к БД:',
   process.env.POSTGRES_HOST,
   process.env.POSTGRES_DB,
 );
-
-config({
-  path: process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev',
-});
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -32,8 +31,8 @@ import { TtsModule } from './tts/tts.module';
       password: process.env.POSTGRES_PASSWORD,
       database: process.env.POSTGRES_DB,
       entities: [join(__dirname, '**', '*.entity.{ts,js}')],
+      migrations: [join(__dirname, '../migrations/*.{ts,js}')], // Исправил путь
       synchronize: false,
-      migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
       migrationsRun: true,
     }),
     ChatModule,
