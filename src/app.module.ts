@@ -1,35 +1,49 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
+import { config } from 'dotenv';
+
+// Загружаем переменные окружения
+console.log(
+  'Подключение к БД:',
+  process.env.POSTGRES_HOST,
+  process.env.POSTGRES_DB,
+);
+
+config({
+  path: process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev',
+});
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ChatModule } from './chat/chat.module';
 import { TelegramModule } from './telegram/telegram.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { WebsocketGateway } from './websocket/websocket.gateway';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
-
-import { WebsocketModule } from './websocket/websocket.module';
+import { TtsService } from './tts/tts.service';
+import { TtsModule } from './tts/tts.module';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.POSTGRES_HOST || 'localhost',
-      port: Number(process.env.POSTGRES_PORT) || 5432,
-      username: process.env.POSTGRES_USER || 'postgres',
-      password: process.env.POSTGRES_PASSWORD || 'postgres',
-      database: process.env.POSTGRES_DB || 'chat_db',
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false, // для разработки, в продакшене лучше отключать
+      host: process.env.POSTGRES_HOST,
+      port: Number(process.env.POSTGRES_PORT),
+      username: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+      database: process.env.POSTGRES_DB,
+      entities: [join(__dirname, '**', '*.entity.{ts,js}')],
+      synchronize: false,
+      migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
+      migrationsRun: true,
     }),
     ChatModule,
     TelegramModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'public'), // Папка public
+      rootPath: join(__dirname, '..', 'public'),
     }),
-    WebsocketModule,
+    TtsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, WebsocketGateway],
+  providers: [AppService, TtsService],
 })
 export class AppModule {}

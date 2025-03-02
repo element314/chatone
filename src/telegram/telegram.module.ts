@@ -1,10 +1,10 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TelegramService } from './telegram.service';
 import { ChatModule } from '../chat/chat.module';
-import { WebsocketModule } from '../websocket/websocket.module';
+import { TtsModule } from '../tts/tts.module';
 
 @Module({
-  imports: [ChatModule, forwardRef(() => WebsocketModule)],
+  imports: [ChatModule, TtsModule],
   providers: [TelegramService],
   exports: [TelegramService],
 })
