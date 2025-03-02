@@ -2,9 +2,16 @@ import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
 import { join } from 'path';
 
+// Загружаем переменные окружения перед их использованием
 config({
   path: process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev',
 });
+
+console.log(
+  'Подключение к БД:',
+  process.env.POSTGRES_HOST,
+  process.env.POSTGRES_DB,
+);
 
 export default new DataSource({
   type: 'postgres',
@@ -13,8 +20,8 @@ export default new DataSource({
   username: process.env.POSTGRES_USER,
   password: process.env.POSTGRES_PASSWORD,
   database: process.env.POSTGRES_DB,
-  entities: [join(__dirname, 'src/**/*.entity.{ts,js}')],
-  migrations: [join(__dirname, 'migrations/*.ts')],
+  entities: [join(__dirname, '**', '*.entity.{ts,js}')],
+  migrations: [join(__dirname, './migrations/*.{js,ts}')],
   synchronize: false,
   migrationsRun: true,
 });
