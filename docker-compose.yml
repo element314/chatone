@@ -1,29 +1,125 @@
 version: '3.8'
 services:
+  # Бэкенд (NestJS)
   app:
     build: .
     container_name: nest-app
     ports:
-      - "3000:3000"
+      - '3000:3000'
     depends_on:
-      - postgres
-
-  transcriber:
-    build: ./transcriber
-    container_name: transcriber-service
-    ports:
-      - "4001:4001"
-
-  postgres:
-    image: postgres:14
+      - postgres_dev
+      - postgres_prod
     environment:
-      POSTGRES_DB: chat_db
+      - NODE_ENV=development  # можно изменить на production в проде
+      - POSTGRES_HOST=postgres_dev
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=chat_db_dev
+
+  # Фронтенд (React + Vite)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: react-frontend
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=200
+    depends_on:
+      - app
+
+  # БД для локалки
+  postgres_dev:
+    image: postgres:14
+    container_name: postgres_dev
+    environment:
+      POSTGRES_DB: chat_db_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - '5433:5432'
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-dev:/var/lib/postgresql/data
+
+  # БД для прода
+  postgres_prod:
+    image: postgres:14
+    container_name: postgres_prod
+    environment:
+      POSTGRES_DB: chat_db_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5434:5432'
+    volumes:
+      - postgres-data-prod:/var/lib/postgresql/data
 
 volumes:
-  postgres-data:
+  postgres-data-dev:
+  postgres-data-prod:
+
+
+
+#version: '3.8'
+#services:
+#  # -------------------------------
+#  # Бэкенд (NestJS)
+#  # -------------------------------
+#  app:
+#    build: .
+#    container_name: nest-app
+#    ports:
+#      - '3000:3000'
+#    depends_on:
+#      - postgres
+#
+#  # -------------------------------
+#  # Фронтенд (React + Vite)
+#  # -------------------------------
+#  frontend:
+#    build:
+#      context: ./frontend
+#      dockerfile: Dockerfile
+#    container_name: react-frontend
+#    ports:
+#      - '5173:5173'
+#    volumes:
+#      - ./frontend:/app
+#      - /app/node_modules
+#    environment:
+#      - CHOKIDAR_USEPOLLING=true
+#      - CHOKIDAR_INTERVAL=200
+#    depends_on:
+#      - app
+#
+#  # -------------------------------
+#  # Транскрайбер (Flask)
+#  # -------------------------------
+#  #  transcriber:
+#  #    build: ./transcriber
+#  #    container_name: transcriber-service
+#  #    ports:
+#  #      - "4001:4001"
+#
+#  # -------------------------------
+#  # БД (PostgreSQL)
+#  # -------------------------------
+#  postgres:
+#    image: postgres:14
+#    environment:
+#      POSTGRES_DB: chat_db
+#      POSTGRES_USER: postgres
+#      POSTGRES_PASSWORD: postgres
+#    ports:
+#      - '5432:5432'
+#    volumes:
+#      - postgres-data:/var/lib/postgresql/data
+#
+#volumes:
+#  postgres-data:
