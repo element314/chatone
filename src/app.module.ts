@@ -3,6 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { config } from 'dotenv';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { ChatModule } from './chat/chat.module';
+import { TelegramModule } from './telegram/telegram.module';
+import { TtsService } from './tts/tts.service';
+import { TtsModule } from './tts/tts.module';
+import { PdfModule } from './pdf/pdf.module';
 
 config({
   path: process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.dev',
@@ -13,13 +20,6 @@ console.log(
   process.env.POSTGRES_HOST,
   process.env.POSTGRES_DB,
 );
-
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { ChatModule } from './chat/chat.module';
-import { TelegramModule } from './telegram/telegram.module';
-import { TtsService } from './tts/tts.service';
-import { TtsModule } from './tts/tts.module';
 
 @Module({
   imports: [
@@ -32,8 +32,8 @@ import { TtsModule } from './tts/tts.module';
       database: process.env.POSTGRES_DB,
       entities: [join(__dirname, '**', '*.entity.{ts,js}')],
       migrations: [join(__dirname, '../migrations/*.{ts,js}')], // Исправил путь
-      synchronize: false,
-      migrationsRun: true,
+      migrationsRun: process.env.NODE_ENV === 'production', // запускать миграции только в продакшене
+      synchronize: process.env.NODE_ENV === 'development',
     }),
     ChatModule,
     TelegramModule,
@@ -41,6 +41,7 @@ import { TtsModule } from './tts/tts.module';
       rootPath: join(__dirname, '..', 'public'),
     }),
     TtsModule,
+    PdfModule,
   ],
   controllers: [AppController],
   providers: [AppService, TtsService],
